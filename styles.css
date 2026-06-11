@@ -1,0 +1,184 @@
+:root {
+  --bg: #16140f;
+  --ink: #ede8dd;
+  --ink-dim: #ede8dd99;
+  --scrim-1: #16140fcc;
+  --scrim-2: #16140f66;
+  --halo: 0 2px 18px rgba(0, 0, 0, 0.55);
+  --radius: 3px;
+}
+
+:root[data-theme="light"] {
+  --bg: #f3efe6;
+  --ink: #1b1812;
+  --ink-dim: #1b181299;
+  --scrim-1: #f3efe6e6;
+  --scrim-2: #f3efe699;
+  --halo: 0 2px 18px rgba(243, 239, 230, 0.7);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  overflow: hidden;
+  font-family: "Space Mono", ui-monospace, monospace;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+/* The stage: full screen, slides are placed absolutely inside it. */
+.slider {
+  position: relative;
+  width: 100vw;
+  height: 100svh;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none; /* we handle dragging ourselves */
+}
+.slider.is-grabbing {
+  cursor: grabbing;
+}
+
+/* Each slide stands on the floor (bottom-left) and grows upward. */
+.slide {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: #00000022;
+  transform-origin: left bottom; /* scale grows up and to the right from the floor */
+  will-change: transform;        /* transform-only -> GPU-composited, no per-frame layout */
+  backface-visibility: hidden;   /* promote to its own layer; kills sub-pixel shimmer */
+}
+.slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* A soft scrim from the top-left so the headline stays legible over any photo. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 800;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 90% at 0% 0%,
+    var(--scrim-1) 0%,
+    var(--scrim-2) 28%,
+    transparent 55%
+  );
+}
+
+/* Overlaid text. */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+  padding: clamp(1.25rem, 4vw, 3rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.eyebrow {
+  font-size: clamp(0.65rem, 1.1vw, 0.78rem);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  text-shadow: var(--halo);
+}
+
+.theme-toggle {
+  pointer-events: auto;
+  cursor: pointer;
+  font-family: "Space Mono", ui-monospace, monospace;
+  font-size: clamp(0.6rem, 1.05vw, 0.74rem);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--ink-dim);
+  border-radius: 999px;
+  padding: 0.5em 1.1em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  text-shadow: var(--halo);
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.theme-toggle::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+.theme-toggle:hover {
+  border-color: var(--ink);
+}
+
+.title {
+  font-family: "Anton", system-ui, sans-serif;
+  font-weight: 400;
+  font-size: clamp(3.4rem, 12vw, 9.5rem);
+  line-height: 0.94;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+  max-width: 14ch;
+  margin-top: 0.3em;
+}
+
+.foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  font-size: clamp(0.65rem, 1.1vw, 0.78rem);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  text-shadow: var(--halo);
+}
+.hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+}
+.hint .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ink);
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide {
+    will-change: auto;
+  }
+}

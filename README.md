@@ -1,12 +1,12 @@
 # Infinite Image Slider
 
-An infinite, draggable image slider where frames grow as they flow across the screen — vanilla JS, no dependencies, in a single self-contained HTML file.
+An infinite, draggable image slider where frames grow as they flow across the screen — vanilla JS, no dependencies, no build step.
 
 **▶ [Live demo](https://tahabakri.github.io/infinite-image-slider/)** — drag it, scroll it, or just let it drift.
 
 ## How it works
 
-Three ideas do all the work, and they all live in the single `<script>` at the bottom of [`index.html`](index.html).
+Three ideas do all the work, and they all live in [`slider.js`](slider.js).
 
 ### 1. Geometric edge-tiling → frames grow with no gaps
 
@@ -39,6 +39,18 @@ All input nudges a `target` value; the render loop eases the real `scroll` towar
 
 Each slide is positioned *and* sized with **one GPU `transform`** — a `translate` to its left edge plus a `scale` of a single fixed-size element — never by changing `width`/`height`. That keeps every frame on the compositor with no layout work and no per-frame integer rounding, so the motion stays rock-steady with no shimmer.
 
+## Project structure
+
+Three flat files, no build:
+
+```
+index.html   — markup (the stage, overlay text, theme toggle)
+styles.css   — all styling + the light/dark theme variables
+slider.js    — config, geometry, input, the render loop, theme toggle
+```
+
+The only inline script is a tiny theme bootstrap in the `<head>` — it sets light/dark before first paint to avoid a flash, which an external file can't do in time.
+
 ## Run it locally
 
 No build step, no server, no dependencies. Just open the file:
@@ -56,7 +68,7 @@ Or double-click `index.html` in your file browser. The images load from [Lorem P
 
 ## Deploy (GitHub Pages)
 
-The repo is already a deployable site — `index.html` at the root is all GitHub Pages needs.
+The repo is already a deployable site — the static files at the root are all GitHub Pages needs.
 
 1. Push to GitHub on the `main` branch.
 2. Open **Settings → Pages**.
@@ -66,7 +78,7 @@ The repo is already a deployable site — `index.html` at the root is all GitHub
 
 ## Customise
 
-Everything you'd normally want to tweak lives in the `config` object at the top of the `<script>`:
+Everything you'd normally want to tweak lives in the `config` object at the top of [`slider.js`](slider.js):
 
 | Option | Default | What it does |
 | --- | --- | --- |
