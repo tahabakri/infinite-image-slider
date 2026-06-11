@@ -70,7 +70,7 @@ Everything you'd normally want to tweak lives in the `config` object at the top 
 
 | Option | Default | What it does |
 | --- | --- | --- |
-| `imageCount` | `20` | Number of distinct images in the loop |
+| `imageCount` | `30` | Number of distinct images in the loop |
 | `ease` | `0.075` | Motion smoothing — lower is a heavier, slower glide |
 | `wheelSpeed` | `0.0015` | Scroll / trackpad sensitivity |
 | `dragSpeed` | `0.0016` | Pointer-drag sensitivity |
@@ -82,6 +82,10 @@ Everything you'd normally want to tweak lives in the `config` object at the top 
 | `buffer` | `3` | Extra slides kept just off the right edge |
 
 Raise `growth` for a more dramatic size ramp, lower `ease` for a heavier glide, or set `autoSpeed: 0` to stop the idle drift.
+
+### Light / dark theme
+
+The page ships with a light/dark toggle (top-right). The choice is saved to `localStorage` and otherwise follows the visitor's `prefers-color-scheme`. Theme colours are CSS variables — edit `:root` for dark and `:root[data-theme="light"]` for light.
 
 ### Swap the images
 
@@ -95,7 +99,7 @@ const images = [
 ];
 ```
 
-By default it builds 20 seeded [Lorem Picsum](https://picsum.photos) URLs (`https://picsum.photos/seed/passing-0/900/1250`, …). Seeded URLs are stable — the same seed always returns the same image and never 404s. If you change how many images you supply, keep `config.imageCount` in sync with the array length.
+By default it builds 30 seeded [Lorem Picsum](https://picsum.photos) URLs (`https://picsum.photos/seed/passing-0/900/1250`, …). Seeded URLs are stable — the same seed always returns the same image and never 404s. If you change how many images you supply, keep `config.imageCount` in sync with the array length.
 
 ## License
 

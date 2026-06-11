@@ -7,13 +7,25 @@
 <meta name="description" content="An infinite, draggable image slider where slides grow as they flow across the screen. Drag or scroll." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
 <style>
 :root {
   --bg: #16140f;
   --ink: #ede8dd;
   --ink-dim: #ede8dd99;
+  --scrim-1: #16140fcc;
+  --scrim-2: #16140f66;
+  --halo: 0 2px 18px rgba(0, 0, 0, 0.55);
   --radius: 3px;
+}
+
+:root[data-theme="light"] {
+  --bg: #f3efe6;
+  --ink: #1b1812;
+  --ink-dim: #1b181299;
+  --scrim-1: #f3efe6e6;
+  --scrim-2: #f3efe699;
+  --halo: 0 2px 18px rgba(243, 239, 230, 0.7);
 }
 
 * {
@@ -34,6 +46,7 @@ body {
   color: var(--ink);
   overflow: hidden;
   font-family: "Space Mono", ui-monospace, monospace;
+  transition: background-color 0.4s ease, color 0.4s ease;
 }
 
 /* The stage: full screen, slides are placed absolutely inside it. */
@@ -74,12 +87,12 @@ body {
 .scrim {
   position: absolute;
   inset: 0;
-  z-index: 50;
+  z-index: 800;
   pointer-events: none;
   background: radial-gradient(
     120% 90% at 0% 0%,
-    #16140fcc 0%,
-    #16140f66 28%,
+    var(--scrim-1) 0%,
+    var(--scrim-2) 28%,
     transparent 55%
   );
 }
@@ -88,7 +101,7 @@ body {
 .overlay {
   position: absolute;
   inset: 0;
-  z-index: 60;
+  z-index: 1000;
   pointer-events: none;
   padding: clamp(1.25rem, 4vw, 3rem);
   display: flex;
@@ -96,21 +109,59 @@ body {
   justify-content: space-between;
 }
 
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .eyebrow {
   font-size: clamp(0.65rem, 1.1vw, 0.78rem);
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--ink-dim);
+  text-shadow: var(--halo);
+}
+
+.theme-toggle {
+  pointer-events: auto;
+  cursor: pointer;
+  font-family: "Space Mono", ui-monospace, monospace;
+  font-size: clamp(0.6rem, 1.05vw, 0.74rem);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--ink-dim);
+  border-radius: 999px;
+  padding: 0.5em 1.1em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  text-shadow: var(--halo);
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.theme-toggle::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+.theme-toggle:hover {
+  border-color: var(--ink);
 }
 
 .title {
-  font-family: "Syne", system-ui, sans-serif;
-  font-weight: 800;
-  font-size: clamp(3rem, 11vw, 8.5rem);
-  line-height: 0.92;
-  letter-spacing: -0.02em;
-  max-width: 12ch;
-  margin-top: 0.35em;
+  font-family: "Anton", system-ui, sans-serif;
+  font-weight: 400;
+  font-size: clamp(3.4rem, 12vw, 9.5rem);
+  line-height: 0.94;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+  max-width: 14ch;
+  margin-top: 0.3em;
 }
 
 .foot {
@@ -122,6 +173,7 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-dim);
+  text-shadow: var(--halo);
 }
 .hint {
   display: inline-flex;
@@ -143,13 +195,28 @@ body {
 }
 
 </style>
+<script>
+  // Apply the saved / preferred theme before first paint to avoid a flash.
+  (function () {
+    var saved = localStorage.getItem('theme');
+    var t =
+      saved ||
+      (window.matchMedia('(prefers-color-scheme: light)').matches
+        ? 'light'
+        : 'dark');
+    document.documentElement.dataset.theme = t;
+  })();
+</script>
 </head>
 <body>
 <main class="slider" aria-label="Image gallery. Drag or scroll to move.">
   <div class="scrim"></div>
   <div class="overlay">
     <div>
-      <p class="eyebrow">Infinite gallery</p>
+      <div class="top">
+        <p class="eyebrow">Infinite gallery</p>
+        <button class="theme-toggle" type="button" aria-label="Switch between light and dark mode">Light</button>
+      </div>
       <h1 class="title">Passing Frames</h1>
     </div>
     <div class="foot">
@@ -164,7 +231,7 @@ body {
    Original implementation of the technique (no tutorial code reused). */
 
 const config = {
-  imageCount: 20,      // number of distinct images in the loop
+  imageCount: 30,      // number of distinct images in the loop
   ease: 0.075,         // motion smoothing (lower = heavier glide)
   wheelSpeed: 0.0015,  // scroll/trackpad sensitivity
   dragSpeed: 0.0016,   // click/touch drag sensitivity
@@ -290,7 +357,7 @@ function render() {
 
     const s = slides[i].style;
     s.transform = `translate3d(${left}px, ${-lift}px, 0) scale(${scale})`;
-    s.zIndex = left | 0; // slides further along (larger left) sit on top
+    s.zIndex = v | 0; // bounded 0..count, so the row always sits under the overlay text
   }
 
   requestAnimationFrame(render);
@@ -305,6 +372,25 @@ window.addEventListener('resize', () => {
 
 build();
 render();
+
+// ---------- light / dark theme ----------
+const themeToggle = document.querySelector('.theme-toggle');
+function syncThemeLabel() {
+  // The label shows the mode you'll switch to.
+  const isDark = document.documentElement.dataset.theme !== 'light';
+  themeToggle.textContent = isDark ? 'Light' : 'Dark';
+}
+themeToggle.addEventListener('pointerdown', (e) => e.stopPropagation());
+themeToggle.addEventListener('click', () => {
+  const next =
+    document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = next;
+  try {
+    localStorage.setItem('theme', next);
+  } catch (e) {}
+  syncThemeLabel();
+});
+syncThemeLabel();
 
 </script>
 </body>
