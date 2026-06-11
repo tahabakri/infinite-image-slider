@@ -18,7 +18,7 @@ E(v) = minWidth × (rᵛ − 1) / (r − 1)        where  r = e^growth
 
 A slide covering `[v, v+1]` therefore has width `E(v+1) − E(v) = minWidth × rᵛ`. Each slide is exactly `r` times wider than the one before it, so the row **grows** smoothly from left to right.
 
-The key trick: one slide's right edge `E(v+1)` is *exactly* the next slide's left edge. The frames share edges, so the row **tiles with no gaps**. Those edges are rounded to whole pixels before they're applied, so neighbours meet cleanly with no sub-pixel seam creeping in. Each slide's height comes straight from its width via `aspect`.
+The key trick: one slide's right edge `E(v+1)` is *exactly* the next slide's left edge. The frames share edges, so the row **tiles with no gaps** — and because both neighbours derive that shared boundary from the same `E(v+1)`, the edges line up exactly even at sub-pixel precision (a 1px overlap, hidden under the slide stacked on top, mops up any hairline seam). Each slide's height comes straight from its width via `aspect`.
 
 ### 2. A seamless loop → slide count rounded to whole image-cycles
 
@@ -36,6 +36,8 @@ Every frame, each slide's position is wrapped with `(i + scroll) % count`. When 
 - **Pointer** — `pointerdown` / `pointermove` / `pointerup` with `setPointerCapture` give click-and-drag on desktop and touch-drag on mobile from one code path. `touch-action: none` hands the gesture to the script instead of the browser, and capture keeps tracking even if the cursor drifts off the stage mid-drag.
 
 All input nudges a `target` value; the render loop eases the real `scroll` toward it each frame (`scroll += (target − scroll) × ease`), which is what gives the motion its weighted, glide-to-a-stop feel. When you're not dragging, an optional idle drift (`autoSpeed`) keeps it moving — automatically switched off for visitors who prefer reduced motion.
+
+Each slide is positioned *and* sized with **one GPU `transform`** — a `translate` to its left edge plus a `scale` of a single fixed-size element — never by changing `width`/`height`. That keeps every frame on the compositor with no layout work and no per-frame integer rounding, so the motion stays rock-steady with no shimmer.
 
 ## Run it locally
 
@@ -68,7 +70,7 @@ Everything you'd normally want to tweak lives in the `config` object at the top 
 
 | Option | Default | What it does |
 | --- | --- | --- |
-| `imageCount` | `12` | Number of distinct images in the loop |
+| `imageCount` | `20` | Number of distinct images in the loop |
 | `ease` | `0.075` | Motion smoothing — lower is a heavier, slower glide |
 | `wheelSpeed` | `0.0015` | Scroll / trackpad sensitivity |
 | `dragSpeed` | `0.0016` | Pointer-drag sensitivity |
@@ -93,7 +95,7 @@ const images = [
 ];
 ```
 
-By default it builds seeded [Lorem Picsum](https://picsum.photos) URLs (`https://picsum.photos/seed/passing-0/700/1000`, …). Seeded URLs are stable — the same seed always returns the same image and never 404s. If you change how many images you supply, keep `config.imageCount` in sync with the array length.
+By default it builds 20 seeded [Lorem Picsum](https://picsum.photos) URLs (`https://picsum.photos/seed/passing-0/900/1250`, …). Seeded URLs are stable — the same seed always returns the same image and never 404s. If you change how many images you supply, keep `config.imageCount` in sync with the array length.
 
 ## License
 

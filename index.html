@@ -7,7 +7,7 @@
 <meta name="description" content="An infinite, draggable image slider where slides grow as they flow across the screen. Drag or scroll." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
 <style>
 :root {
   --bg: #16140f;
@@ -57,7 +57,9 @@ body {
   overflow: hidden;
   border-radius: var(--radius);
   background: #00000022;
-  will-change: transform, width, height;
+  transform-origin: left bottom; /* scale grows up and to the right from the floor */
+  will-change: transform;        /* transform-only -> GPU-composited, no per-frame layout */
+  backface-visibility: hidden;   /* promote to its own layer; kills sub-pixel shimmer */
 }
 .slide img {
   width: 100%;
@@ -102,7 +104,7 @@ body {
 }
 
 .title {
-  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-family: "Syne", system-ui, sans-serif;
   font-weight: 800;
   font-size: clamp(3rem, 11vw, 8.5rem);
   line-height: 0.92;
@@ -162,7 +164,7 @@ body {
    Original implementation of the technique (no tutorial code reused). */
 
 const config = {
-  imageCount: 12,      // number of distinct images in the loop
+  imageCount: 20,      // number of distinct images in the loop
   ease: 0.075,         // motion smoothing (lower = heavier glide)
   wheelSpeed: 0.0015,  // scroll/trackpad sensitivity
   dragSpeed: 0.0016,   // click/touch drag sensitivity
@@ -177,11 +179,16 @@ const config = {
 const stage = document.querySelector('.slider');
 const r = Math.exp(config.growth);
 
+// Slides are one fixed-size element scaled by a GPU transform — never resized via
+// width/height — so the row grows and glides with no layout work and no jitter.
+const baseW = 720;
+const baseH = baseW / config.aspect;
+
 // Stable, royalty-free images from Lorem Picsum. Seeded URLs never 404 and
 // always return the same image — swap the seeds or the whole list freely.
 const images = Array.from(
   { length: config.imageCount },
-  (_, i) => `https://picsum.photos/seed/passing-${i}/700/1000`
+  (_, i) => `https://picsum.photos/seed/passing-${i}/900/1250`
 );
 
 // E(v) maps a position along the stream to an x-coordinate. A slide spanning
@@ -206,6 +213,8 @@ function build() {
   for (let i = 0; i < count; i++) {
     const slide = document.createElement('div');
     slide.className = 'slide';
+    slide.style.width = baseW + 'px';
+    slide.style.height = baseH + 'px';
     const img = document.createElement('img');
     img.src = images[i % config.imageCount];
     img.alt = '';
@@ -272,17 +281,16 @@ function render() {
     let v = (i + scroll) % count;
     if (v < 0) v += count;
 
-    // Round edges to whole pixels so neighbours meet cleanly (no seams).
-    const left = Math.round(E(v));
-    const right = Math.round(E(v + 1));
-    const w = right - left;
-    const h = w / config.aspect;
+    // Position and size are one GPU transform: translate to the left edge, then
+    // scale the fixed-size slide down to this slot's width. Sub-pixel and
+    // composited, so the row glides with no shimmer and no layout work.
+    const left = E(v);
+    const w = E(v + 1) - left;
+    const scale = (w + 1) / baseW; // +1px overlap, hidden by the slide on top, kills seams
 
     const s = slides[i].style;
-    s.width = w + 'px';
-    s.height = h + 'px';
-    s.transform = `translate(${left}px, ${-lift}px)`;
-    s.zIndex = right; // slides further along sit on top
+    s.transform = `translate3d(${left}px, ${-lift}px, 0) scale(${scale})`;
+    s.zIndex = left | 0; // slides further along (larger left) sit on top
   }
 
   requestAnimationFrame(render);
