@@ -2,6 +2,8 @@
 
 An infinite, draggable image slider where frames grow as they flow across the screen — vanilla JS, no dependencies, no build step.
 
+[![Infinite image slider — frames grow as they flow across the screen](preview.gif)](https://tahabakri.github.io/infinite-image-slider/)
+
 **▶ [Live demo](https://tahabakri.github.io/infinite-image-slider/)** — drag it, scroll it, or just let it drift.
 
 ## How it works
