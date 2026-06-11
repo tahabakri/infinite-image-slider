@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Passing Frames — an infinite, draggable image slider</title>
+<meta name="description" content="An infinite, draggable image slider where slides grow as they flow across the screen. Drag or scroll." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg: #16140f;
+  --ink: #ede8dd;
+  --ink-dim: #ede8dd99;
+  --radius: 3px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  overflow: hidden;
+  font-family: "Space Mono", ui-monospace, monospace;
+}
+
+/* The stage: full screen, slides are placed absolutely inside it. */
+.slider {
+  position: relative;
+  width: 100vw;
+  height: 100svh;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none; /* we handle dragging ourselves */
+}
+.slider.is-grabbing {
+  cursor: grabbing;
+}
+
+/* Each slide stands on the floor (bottom-left) and grows upward. */
+.slide {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: #00000022;
+  will-change: transform, width, height;
+}
+.slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* A soft scrim from the top-left so the headline stays legible over any photo. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 90% at 0% 0%,
+    #16140fcc 0%,
+    #16140f66 28%,
+    transparent 55%
+  );
+}
+
+/* Overlaid text. */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  padding: clamp(1.25rem, 4vw, 3rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.eyebrow {
+  font-size: clamp(0.65rem, 1.1vw, 0.78rem);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.title {
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: clamp(3rem, 11vw, 8.5rem);
+  line-height: 0.92;
+  letter-spacing: -0.02em;
+  max-width: 12ch;
+  margin-top: 0.35em;
+}
+
+.foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  font-size: clamp(0.65rem, 1.1vw, 0.78rem);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+}
+.hint .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ink);
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide {
+    will-change: auto;
+  }
+}
+
+</style>
+</head>
+<body>
+<main class="slider" aria-label="Image gallery. Drag or scroll to move.">
+  <div class="scrim"></div>
+  <div class="overlay">
+    <div>
+      <p class="eyebrow">Infinite gallery</p>
+      <h1 class="title">Passing Frames</h1>
+    </div>
+    <div class="foot">
+      <span class="hint"><span class="dot"></span>Drag or scroll</span>
+      <span>Endless loop</span>
+    </div>
+  </div>
+</main>
+
+<script>
+/* Infinite, draggable image slider — slides grow as they flow across.
+   Original implementation of the technique (no tutorial code reused). */
+
+const config = {
+  imageCount: 12,      // number of distinct images in the loop
+  ease: 0.075,         // motion smoothing (lower = heavier glide)
+  wheelSpeed: 0.0015,  // scroll/trackpad sensitivity
+  dragSpeed: 0.0016,   // click/touch drag sensitivity
+  autoSpeed: 0.0018,   // gentle idle drift per frame (set 0 to disable)
+  minWidth: 92,        // width of the smallest slide, px
+  growth: 0.17,        // each slide is e^growth times wider than the last
+  aspect: 0.72,        // slide width / height (portrait frames)
+  bottomOffset: 0.05,  // lift slides off the floor, as a fraction of height
+  buffer: 3,           // extra slides kept just off the right edge
+};
+
+const stage = document.querySelector('.slider');
+const r = Math.exp(config.growth);
+
+// Stable, royalty-free images from Lorem Picsum. Seeded URLs never 404 and
+// always return the same image — swap the seeds or the whole list freely.
+const images = Array.from(
+  { length: config.imageCount },
+  (_, i) => `https://picsum.photos/seed/passing-${i}/700/1000`
+);
+
+// E(v) maps a position along the stream to an x-coordinate. A slide spanning
+// stream positions [v, v+1] has width E(v+1) - E(v) = minWidth * r^v, so each
+// slide is a constant ratio bigger than the one before it. Adjacent slides
+// share an edge, so the row tiles with no gaps.
+const E = (v) => (config.minWidth * (Math.pow(r, v) - 1)) / (r - 1);
+const Einv = (x) =>
+  Math.log(1 + (x * (r - 1)) / config.minWidth) / Math.log(r);
+
+let slides = [];
+let count = 0;
+
+function build() {
+  // Enough slides to span the screen plus a buffer, rounded UP to a whole
+  // number of image-cycles so the looping image pattern is perfectly seamless.
+  const need = Math.ceil(Einv(window.innerWidth)) + config.buffer;
+  count = Math.ceil(need / config.imageCount) * config.imageCount;
+
+  stage.querySelectorAll('.slide').forEach((el) => el.remove());
+  slides = [];
+  for (let i = 0; i < count; i++) {
+    const slide = document.createElement('div');
+    slide.className = 'slide';
+    const img = document.createElement('img');
+    img.src = images[i % config.imageCount];
+    img.alt = '';
+    slide.appendChild(img);
+    stage.appendChild(slide);
+    slides.push(slide);
+  }
+}
+
+let target = 0; // where we want to be
+let scroll = 0; // where we are (eased toward target)
+
+// ---------- input ----------
+let dragging = false;
+let lastX = 0;
+
+stage.addEventListener(
+  'wheel',
+  (e) => {
+    e.preventDefault();
+    target += (e.deltaY + e.deltaX) * config.wheelSpeed;
+  },
+  { passive: false }
+);
+
+stage.addEventListener('pointerdown', (e) => {
+  dragging = true;
+  lastX = e.clientX;
+  stage.classList.add('is-grabbing');
+  stage.setPointerCapture(e.pointerId);
+});
+
+stage.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  target += (e.clientX - lastX) * config.dragSpeed;
+  lastX = e.clientX;
+});
+
+function endDrag() {
+  dragging = false;
+  stage.classList.remove('is-grabbing');
+}
+stage.addEventListener('pointerup', endDrag);
+stage.addEventListener('pointercancel', endDrag);
+
+// Respect users who prefer no motion: no idle drift for them.
+let idle = config.autoSpeed;
+if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) idle = 0;
+
+// ---------- render loop ----------
+function render() {
+  if (!dragging) target += idle;
+  scroll += (target - scroll) * config.ease;
+
+  // Keep the numbers bounded over long runs without disturbing the motion.
+  if (scroll > count && target > count) {
+    scroll -= count;
+    target -= count;
+  }
+
+  const lift = stage.clientHeight * config.bottomOffset;
+
+  for (let i = 0; i < count; i++) {
+    let v = (i + scroll) % count;
+    if (v < 0) v += count;
+
+    // Round edges to whole pixels so neighbours meet cleanly (no seams).
+    const left = Math.round(E(v));
+    const right = Math.round(E(v + 1));
+    const w = right - left;
+    const h = w / config.aspect;
+
+    const s = slides[i].style;
+    s.width = w + 'px';
+    s.height = h + 'px';
+    s.transform = `translate(${left}px, ${-lift}px)`;
+    s.zIndex = right; // slides further along sit on top
+  }
+
+  requestAnimationFrame(render);
+}
+
+// Rebuild on resize (debounced) so the slide count fits the new width.
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(build, 150);
+});
+
+build();
+render();
+
+</script>
+</body>
+</html>
